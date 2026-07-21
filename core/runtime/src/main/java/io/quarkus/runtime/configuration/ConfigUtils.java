@@ -104,6 +104,23 @@ public final class ConfigUtils {
     }
 
     /**
+     * Gets the value of the configuration property, or the given default if the property has no value or the
+     * configuration is not available.
+     *
+     * @param propertyName the name of the configuration property
+     * @param defaultValue the value to return if the property has no value or the configuration is not available
+     * @return the configuration value or the given default
+     */
+    public static String getValueOrElse(String propertyName, String defaultValue) {
+        try {
+            return ConfigProvider.getConfig().getOptionalValue(propertyName, String.class).orElse(defaultValue);
+        } catch (IllegalStateException e) {
+            // no config is available for this class loader
+            return defaultValue;
+        }
+    }
+
+    /**
      * Check if a configuration profile is active in Quarkus.
      *
      * @param profile the configuration profile to check

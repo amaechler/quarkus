@@ -342,8 +342,12 @@ public class MainClassBuildStep {
         tryBlock.invokeStaticMethod(
                 ofMethod(Timing.class, "printStartupTime", void.class, String.class, String.class, String.class, String.class,
                         List.class, boolean.class, boolean.class),
-                tryBlock.load(applicationInfo.getName()),
-                tryBlock.load(applicationInfo.getVersion()),
+                tryBlock.invokeStaticMethod(
+                        ofMethod(ConfigUtils.class, "getValueOrElse", String.class, String.class, String.class),
+                        tryBlock.load("quarkus.application.name"), tryBlock.load(applicationInfo.getName())),
+                tryBlock.invokeStaticMethod(
+                        ofMethod(ConfigUtils.class, "getValueOrElse", String.class, String.class, String.class),
+                        tryBlock.load("quarkus.application.version"), tryBlock.load(applicationInfo.getVersion())),
                 tryBlock.load(Version.getVersion()),
                 featuresHandle,
                 tryBlock.invokeStaticMethod(ofMethod(ConfigUtils.class, "getProfiles", List.class)),

@@ -15,6 +15,7 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.ApplicationInfoBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
 import io.quarkus.deployment.builditem.ReproducibilityCheckBuildItem;
 import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
@@ -22,7 +23,7 @@ import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
 import io.quarkus.maven.dependency.GACT;
 import io.quarkus.maven.dependency.ResolvedDependency;
-import io.quarkus.runtime.ApplicationConfig;
+import io.quarkus.runtime.ApplicationBuildTimeConfig;
 import io.quarkus.vertx.http.runtime.devmode.FileSystemStaticHandler;
 import io.quarkus.vertx.http.runtime.webjar.WebJarRecorder;
 
@@ -33,11 +34,12 @@ public class WebJarProcessor {
             CurateOutcomeBuildItem curateOutcomeBuildItem,
             ShutdownContextBuildItem shutdownContext,
             Optional<ReproducibilityCheckBuildItem> reproducibilityCheckBuildItem,
-            ApplicationConfig applicationConfig) throws IOException {
+            ApplicationInfoBuildItem applicationInfo,
+            ApplicationBuildTimeConfig applicationBuildTimeConfig) throws IOException {
 
         Map<GACT, WebJarResultsBuildItem.WebJarResult> results = new HashMap<>();
 
-        Path deploymentBasePath = getDeploymentBasePath(applicationConfig, reproducibilityCheckBuildItem.isPresent());
+        Path deploymentBasePath = getDeploymentBasePath(applicationInfo, reproducibilityCheckBuildItem.isPresent());
         recorder.shutdownTask(shutdownContext, deploymentBasePath.toString());
 
         for (WebJarBuildItem webJar : webJars) {
@@ -45,7 +47,8 @@ public class WebJarProcessor {
                     .resolve(buildFinalDestination(webJar.getArtifactKey(), webJar.getRoot()));
             ResolvedDependency dependency = WebJarUtil.getAppArtifact(curateOutcomeBuildItem, webJar.getArtifactKey());
 
-            Path staticResourcesPath = WebJarUtil.copyResourcesForDevOrTest(curateOutcomeBuildItem, applicationConfig, webJar,
+            Path staticResourcesPath = WebJarUtil.copyResourcesForDevOrTest(curateOutcomeBuildItem, applicationInfo,
+                    applicationBuildTimeConfig, webJar,
                     dependency, resourcesDirectory);
 
             List<FileSystemStaticHandler.StaticWebRootConfiguration> webRootConfigurations = new ArrayList<>();
@@ -66,14 +69,15 @@ public class WebJarProcessor {
         return new WebJarResultsBuildItem(results);
     }
 
-    private static Path getDeploymentBasePath(ApplicationConfig applicationConfig, boolean isReproducibilityCheck)
+    private static Path getDeploymentBasePath(ApplicationInfoBuildItem applicationInfo, boolean isReproducibilityCheck)
             throws IOException {
         if (!isReproducibilityCheck) {
             return Files.createTempDirectory("quarkus-webjar");
         }
         Path deploymentBasePath = Path.of(
                 System.getProperty("java.io.tmpdir"),
-                "quarkus-webjar-" + applicationConfig.name().orElse("app"));
+                "quarkus-webjar-" + (ApplicationInfoBuildItem.UNSET_VALUE.equals(applicationInfo.getName()) ? "app"
+                        : applicationInfo.getName()));
 
         if (Files.exists(deploymentBasePath)) {
             IoUtils.recursiveDelete(deploymentBasePath);
@@ -87,7 +91,8 @@ public class WebJarProcessor {
             CurateOutcomeBuildItem curateOutcomeBuildItem,
             BuildProducer<GeneratedResourceBuildItem> generatedResources,
             BuildProducer<NativeImageResourceBuildItem> nativeImageResourceBuildItemBuildProducer,
-            ApplicationConfig applicationConfig) {
+            ApplicationInfoBuildItem applicationInfo,
+            ApplicationBuildTimeConfig applicationBuildTimeConfig) {
 
         Map<GACT, WebJarResultsBuildItem.WebJarResult> results = new HashMap<>();
 
@@ -96,7 +101,7 @@ public class WebJarProcessor {
             ResolvedDependency dependency = WebJarUtil.getAppArtifact(curateOutcomeBuildItem, webJar.getArtifactKey());
 
             Map<String, byte[]> files = WebJarUtil.copyResourcesForProduction(
-                    curateOutcomeBuildItem, applicationConfig, webJar, dependency);
+                    curateOutcomeBuildItem, applicationInfo, applicationBuildTimeConfig, webJar, dependency);
 
             String finalDestination = buildFinalDestination(webJar.getArtifactKey(), webJar.getRoot());
             for (Map.Entry<String, byte[]> file : files.entrySet()) {

@@ -5,8 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import io.quarkus.builder.Version;
+import io.quarkus.deployment.builditem.ApplicationInfoBuildItem;
 import io.quarkus.maven.dependency.ResolvedDependency;
-import io.quarkus.runtime.ApplicationConfig;
+import io.quarkus.runtime.ApplicationBuildTimeConfig;
 
 /**
  * Filter for inserting variables into an InputStream.
@@ -21,11 +22,14 @@ public class InsertVariablesResourcesFilter implements WebJarResourcesFilter {
 
     private static final String CSS = ".css";
 
-    private final ApplicationConfig applicationConfig;
+    private final ApplicationInfoBuildItem applicationInfo;
+    private final ApplicationBuildTimeConfig applicationBuildTimeConfig;
     private final ResolvedDependency appArtifact;
 
-    public InsertVariablesResourcesFilter(ApplicationConfig applicationConfig, ResolvedDependency appArtifact) {
-        this.applicationConfig = applicationConfig;
+    public InsertVariablesResourcesFilter(ApplicationInfoBuildItem applicationInfo,
+            ApplicationBuildTimeConfig applicationBuildTimeConfig, ResolvedDependency appArtifact) {
+        this.applicationInfo = applicationInfo;
+        this.applicationBuildTimeConfig = applicationBuildTimeConfig;
         this.appArtifact = appArtifact;
     }
 
@@ -37,14 +41,19 @@ public class InsertVariablesResourcesFilter implements WebJarResourcesFilter {
 
         // Allow replacement of certain values in css
         if (fileName.endsWith(CSS)) {
-            String applicationName = applicationConfig.name().orElse(appArtifact.getArtifactId());
-            String applicationVersion = applicationConfig.version().orElse(appArtifact.getVersion());
+            String applicationName = ApplicationInfoBuildItem.UNSET_VALUE.equals(applicationInfo.getName())
+                    ? appArtifact.getArtifactId()
+                    : applicationInfo.getName();
+            String applicationVersion = ApplicationInfoBuildItem.UNSET_VALUE.equals(applicationInfo.getVersion())
+                    ? appArtifact.getVersion()
+                    : applicationInfo.getVersion();
 
             byte[] oldContentBytes = stream.readAllBytes();
             String oldContents = new String(oldContentBytes);
             String contents = replaceHeaderVars(oldContents, applicationName, applicationVersion);
 
-            String header = replaceHeaderVars(applicationConfig.uiHeader().orElse(""), applicationName, applicationVersion);
+            String header = replaceHeaderVars(applicationBuildTimeConfig.uiHeader().orElse(""), applicationName,
+                    applicationVersion);
             contents = contents.replace("{applicationHeader}", header);
 
             boolean changed = contents.length() != oldContents.length() || !contents.equals(oldContents);

@@ -18,12 +18,13 @@ import java.util.function.Consumer;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.deployment.builditem.ApplicationInfoBuildItem;
 import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
 import io.quarkus.maven.dependency.GACT;
 import io.quarkus.maven.dependency.ResolvedDependency;
 import io.quarkus.paths.PathTree;
 import io.quarkus.paths.PathVisit;
-import io.quarkus.runtime.ApplicationConfig;
+import io.quarkus.runtime.ApplicationBuildTimeConfig;
 
 /**
  * Utility for Web resource related operations
@@ -38,7 +39,8 @@ public class WebJarUtil {
     private WebJarUtil() {
     }
 
-    static Path copyResourcesForDevOrTest(CurateOutcomeBuildItem curateOutcomeBuildItem, ApplicationConfig config,
+    static Path copyResourcesForDevOrTest(CurateOutcomeBuildItem curateOutcomeBuildItem,
+            ApplicationInfoBuildItem applicationInfo, ApplicationBuildTimeConfig applicationBuildTimeConfig,
             WebJarBuildItem webJar,
             ResolvedDependency resourcesArtifact,
             Path deploymentBasePath)
@@ -47,22 +49,26 @@ public class WebJarUtil {
         Path deploymentPath = Files.createDirectories(deploymentBasePath);
 
         PathTargetVisitor visitor = new PathTargetVisitor(deploymentPath);
-        copyResources(curateOutcomeBuildItem, config, webJar, resourcesArtifact, visitor);
+        copyResources(curateOutcomeBuildItem, applicationInfo, applicationBuildTimeConfig, webJar, resourcesArtifact,
+                visitor);
 
         return deploymentPath;
     }
 
     static Map<String, byte[]> copyResourcesForProduction(CurateOutcomeBuildItem curateOutcomeBuildItem,
-            ApplicationConfig config, WebJarBuildItem webJar,
+            ApplicationInfoBuildItem applicationInfo, ApplicationBuildTimeConfig applicationBuildTimeConfig,
+            WebJarBuildItem webJar,
             ResolvedDependency resourcesArtifact) {
 
         InMemoryTargetVisitor visitor = new InMemoryTargetVisitor();
-        copyResources(curateOutcomeBuildItem, config, webJar, resourcesArtifact, visitor);
+        copyResources(curateOutcomeBuildItem, applicationInfo, applicationBuildTimeConfig, webJar, resourcesArtifact,
+                visitor);
 
         return visitor.getContent();
     }
 
-    private static void copyResources(CurateOutcomeBuildItem curateOutcomeBuildItem, ApplicationConfig config,
+    private static void copyResources(CurateOutcomeBuildItem curateOutcomeBuildItem,
+            ApplicationInfoBuildItem applicationInfo, ApplicationBuildTimeConfig applicationBuildTimeConfig,
             WebJarBuildItem webJar,
             ResolvedDependency resourcesArtifact, WebJarResourcesTargetVisitor visitor) {
         final ResolvedDependency userApplication = curateOutcomeBuildItem.getApplicationModel().getAppArtifact();
@@ -81,7 +87,8 @@ public class WebJarUtil {
                 if (webJar.getFilter() != null) {
                     filters.add(webJar.getFilter());
                 }
-                filters.add(new InsertVariablesResourcesFilter(config, userApplication));
+                filters.add(new InsertVariablesResourcesFilter(applicationInfo, applicationBuildTimeConfig,
+                        userApplication));
 
                 try {
                     Files.walkFileTree(pathVisit.getPath(),
