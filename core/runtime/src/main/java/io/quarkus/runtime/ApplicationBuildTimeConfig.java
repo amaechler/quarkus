@@ -8,7 +8,9 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
 /**
- * Application
+ * Application, build time.
+ * <p>
+ * The runtime counterpart is {@link ApplicationConfig}.
  */
 @ConfigMapping(prefix = "quarkus.application")
 @ConfigRoot(phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)

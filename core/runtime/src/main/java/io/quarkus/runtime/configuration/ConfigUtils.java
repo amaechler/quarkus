@@ -2,6 +2,7 @@ package io.quarkus.runtime.configuration;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.eclipse.microprofile.config.Config;
@@ -116,6 +117,9 @@ public final class ConfigUtils {
             return ConfigProvider.getConfig().getOptionalValue(propertyName, String.class).orElse(defaultValue);
         } catch (IllegalStateException e) {
             // no config is available for this class loader
+            return defaultValue;
+        } catch (NoSuchElementException e) {
+            // the value contains an expression that cannot be expanded
             return defaultValue;
         }
     }
